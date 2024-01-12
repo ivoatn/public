@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_SCANNER_HOME = tool 'SonarCloud'
+        SONARQUBE_SCANNER_HOME = tool 'SonarScanner'
+        SONAR_TOKEN = credentials('SONAR_TOKEN')
     }
 
     stages {
@@ -14,10 +15,15 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarCloud') {
-                    script {
+                script {
+                    withSonarQubeEnv('SonarCloud') {
                         // Run SonarQube analysis
-                        sh "${SONARQUBE_SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=Your_Project_Key"
+                        sh "${SONARQUBE_SCANNER_HOME}/bin/sonar-scanner " +
+                           "-Dsonar.organization=ivoatn " +
+                           "-Dsonar.projectKey=ivoatn_public " +
+                           "-Dsonar.sources=. " +
+                           "-Dsonar.host.url=https://sonarcloud.io " +
+                           "-Dsonar.login=${SONAR_TOKEN}"
                     }
                 }
             }
