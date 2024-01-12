@@ -15,14 +15,13 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    withSonarQubeEnv('SonarCloud') {
-                        // Run SonarQube analysis
-                        sh "/opt/sonar-scanner/bin/sonar-scanner " +
-                           "-Dsonar.organization=ivoatn " +
-                           "-Dsonar.projectKey=ivoatn_public " +
-                           "-Dsonar.sources=. " +
-                           "-Dsonar.host.url=https://sonarcloud.io"
-                    }
+                    // Run SonarQube analysis
+                    sh "/opt/sonar-scanner/bin/sonar-scanner " +
+                       "-Dsonar.organization=ivoatn " +
+                       "-Dsonar.projectKey=ivoatn_public " +
+                       "-Dsonar.sources=. " +
+                       "-Dsonar.host.url=https://sonarcloud.io " +
+                       "-Dsonar.login=${SONAR_TOKEN}"
                 }
             }
         }
