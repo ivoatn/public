@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_SCANNER_HOME = tool 'SonarScanner'
         SONAR_TOKEN = credentials('SONAR_TOKEN')
     }
 
