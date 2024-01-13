@@ -3,6 +3,9 @@ pipeline {
 
     environment {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
+        DOCKER_REGISTRY = "registry.digitalocean.com/jenkins-test-repository"
+        DOCKER_IMAGE_NAME = "nginx-simple"
+        DOCKER_TAG = "latest"  // You can use any tag you prefer
     }
 
     stages {
@@ -26,15 +29,30 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build and Push Docker Image') {
             steps {
                 script {
-                    sh "kubectl get pods"
-                // Your build steps here
+                    // Build and tag Docker image
+                    sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
+
+                    // Log in to Digital Ocean registry
+                    sh "doctl registry login --no-prompt"
+
+                    // Push Docker image to Digital Ocean registry
+                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
                 }
             }
         }
 
-        // ... (additional stages)
+        stage('Deploy') {
+            steps {
+                script {
+                    // Your deployment steps here
+
+                    // Get pods using kubectl
+                    sh "kubectl get pods"
+                }
+            }
+        }
     }
 }
