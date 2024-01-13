@@ -28,8 +28,10 @@ pipeline {
 
         stage('Build') {
             steps {
-                kubectl get pods
+                script {
+                    sh "kubectl get pods"
                 // Your build steps here
+                }
             }
         }
 
