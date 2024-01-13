@@ -32,6 +32,8 @@ pipeline {
         stage('Build and Push Docker Image') {
             steps {
                 script {
+                    // Check if docker works
+                    sh "docker --version"
                     // Build and tag Docker image
                     sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
 
