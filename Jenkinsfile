@@ -32,6 +32,8 @@ pipeline {
         stage('Build and Push Docker Image') {
             steps {
                 script {
+                     // Check who am I?
+                    sh "whoami"
                     // Check if docker works
                     sh "docker --version"
                     // Build and tag Docker image
