@@ -40,7 +40,7 @@ pipeline {
                     sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
 
                     // Log in to Digital Ocean registry
-                    sh "doctl registry login --no-prompt"
+                    sh "doctl registry login"
 
                     // Push Docker image to Digital Ocean registry
                     sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
