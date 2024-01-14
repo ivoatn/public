@@ -54,7 +54,9 @@ pipeline {
                     // Your deployment steps here
 
                     // Get pods using kubectl
-                    sh "kubectl get pods"
+                    sh "kubectl apply -f kubernetes/pod.yaml"
+                    sh "sleep 30"
+                    sh "kubectl delete pod ${DOCKER_IMAGE_NAME}"
                 }
             }
         }
