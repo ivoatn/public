@@ -53,7 +53,6 @@ pipeline {
             }
         }
 
-
         stage('Canary Deployment') {
             steps {
                 script {
@@ -64,11 +63,9 @@ pipeline {
                     INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
 
                     // Gradually scale down the active deployment and scale up the inactive deployment
-                    for (def i = 0; i < 3; i++) {
-                    def activeReplicas = 3 - i
-                    def inactiveReplicas = i + 1
-                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=$activeReplicas"
-                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=$inactiveReplicas"
+                    for (def i = 3; i >= 0; i--) {
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=$i"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=$i"
                         sleep 30
                     }
 
@@ -78,7 +75,7 @@ pipeline {
             }
         }
 
-        stage('Parallel Steps') {
+        stage('Performance Test') {
             parallel {
                 stage('Performance Tests with k6') {
                     steps {
@@ -104,7 +101,7 @@ pipeline {
             steps {
                 script {
                     // Verify deployment
-                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '2'"
+                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '0'"
                 }
             }
         }
