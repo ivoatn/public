@@ -39,7 +39,7 @@ pipeline {
             steps {
                 script {
                     // Trigger the staging job
-                    build job: 'multibranch/staging', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+                    build job: 'MultiBranch-Public/staging', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
                 }
             }
         }
