@@ -63,12 +63,14 @@ pipeline {
                     INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
 
                     // Gradually scale down the active deployment and scale up the inactive deployment
-                    for (def i = 3; i >= 0; i--) {
-                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=$i"
-                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=$i"
-                        sleep 30
-                    }
-
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=2"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=1"
+                        sh "wait 10"
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=1"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=2"
+                        sh "wait 10"
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=0"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=3"
                     // Switch active and inactive deployments
                     sh "kubectl patch service nginx-nodeport-service -p '{\"spec\":{\"selector\":{\"app\":\"nginx-canary\"}}}'"
                 }
