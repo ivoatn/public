@@ -44,6 +44,15 @@ pipeline {
             }
         }
 
+        stage('Security Scan with Trivy') {
+            steps {
+                script {
+                    // Scan Docker image for vulnerabilities using Trivy
+                    sh "trivy ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
+                }
+            }
+        }
+
         stage('Deploy to Kubernetes - Apply') {
             steps {
                 script {
@@ -57,7 +66,7 @@ pipeline {
             steps {
                 script {
                     // Wait for pods to be ready
-                    sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=120s'
+                    sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=30s'
                 }
             }
         }
