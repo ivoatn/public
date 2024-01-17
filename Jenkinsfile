@@ -32,10 +32,6 @@ pipeline {
         stage('Build and Push Docker Image') {
             steps {
                 script {
-                     // Check who am I?
-                    sh "whoami"
-                    // Check if docker works
-                    sh "docker --version"
                     // Build and tag Docker image
                     sh "docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
 
@@ -48,15 +44,41 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Kubernetes - Apply') {
             steps {
                 script {
-                    // Your deployment steps here
+                    // Apply Kubernetes manifest
+                    sh 'kubectl apply -f kubernetes/pod.yaml'
+                }
+            }
+        }
 
-                    // Get pods using kubectl
-                    sh "kubectl apply -f kubernetes/pod.yaml"
-                    sh "sleep 300"
-                    sh "kubectl delete -f kubernetes/pod.yaml"
+        stage('Verify Deployment and Service') {
+            steps {
+                script {
+                    // Wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=300s'
+
+                    // Wait for NodePort to be ready
+                    sh 'kubectl wait --for=condition=ready svc/nginx-nodeport-service --timeout=300s'
+                }
+            }
+        }
+
+        stage('Performance Tests with k6') {
+            steps {
+                script {
+                    // Run k6 performance tests
+                    sh 'k6 run basic-perftest.js'
+                }
+            }
+        }
+
+        stage('Clean up') {
+            steps {
+                script {
+                    // Clean up resources
+                    sh 'kubectl delete -f kubernetes/pod.yaml'
                 }
             }
         }
