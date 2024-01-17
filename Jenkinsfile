@@ -55,8 +55,8 @@ pipeline {
 
                     // Get pods using kubectl
                     sh "kubectl apply -f kubernetes/pod.yaml"
-                    sh "sleep 30"
-                    sh "kubectl delete pod ${DOCKER_IMAGE_NAME}"
+                    sh "sleep 300"
+                    sh "kubectl delete -f kubernetes/pod.yaml"
                 }
             }
         }
