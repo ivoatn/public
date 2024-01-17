@@ -53,23 +53,6 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes - Apply') {
-            steps {
-                script {
-                    // Apply Kubernetes manifest
-                    sh 'kubectl apply -f kubernetes/pod.yaml'
-                }
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                script {
-                    // Wait for pods to be ready
-                    sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=30s'
-                }
-            }
-        }
 
         stage('Canary Deployment') {
             steps {
