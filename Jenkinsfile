@@ -57,10 +57,10 @@ pipeline {
             steps {
                 script {
                     // Determine active deployment
-                    ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
+                    ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
 
                     // Determine inactive deployment
-                    INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
+                    INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
 
                     // Gradually scale down the active deployment and scale up the inactive deployment
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=2"
