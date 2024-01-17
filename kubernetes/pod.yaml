@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-simple
+spec:
+  containers:
+  - name: nginx-simple
+    image: registry.digitalocean.com/jenkins-test-repository/nginx-simple:latest
