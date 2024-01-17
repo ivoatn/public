@@ -53,14 +53,11 @@ pipeline {
             }
         }
 
-        stage('Verify Deployment and Service') {
+        stage('Verify Deployment') {
             steps {
                 script {
                     // Wait for pods to be ready
                     sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=120s'
-
-                    // Wait for NodePort to be ready
-                    sh 'kubectl wait --for=condition=ready svc/nginx-nodeport-service --timeout=120s'
                 }
             }
         }
