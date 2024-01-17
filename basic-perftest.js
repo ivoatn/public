@@ -12,7 +12,7 @@ export default function () {
 
   // Repeat the process until 5 minutes have passed
   // Adjust the duration based on your requirements
-  const totalTime = 5 * 60; // 5 minutes in seconds
+  const totalTime = 2 * 60; // 
   let elapsedTime = 0;
 
   while (elapsedTime < totalTime) {
