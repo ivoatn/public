@@ -53,6 +53,46 @@ pipeline {
             }
         }
 
+        stage('Deploy to Kubernetes - Apply') {
+            steps {
+                script {
+                    // Apply Kubernetes manifest
+                    sh 'kubectl apply -f kubernetes/pod.yaml'
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    // Wait for pods to be ready
+                    sh 'kubectl wait --for=condition=ready pod -l app=nginx --timeout=30s'
+                }
+            }
+        }
+
+        stage('Canary Deployment') {
+            steps {
+                script {
+                    // Determine active deployment
+                    ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
+
+                    // Determine inactive deployment
+                    INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
+
+                    // Gradually scale down the active deployment and scale up the inactive deployment
+                    for (def i = 0; i < 3; i++) {
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=\$((${3 - i}))"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=\$((${4 - i}))"
+                        sleep 30
+                    }
+
+                    // Switch active and inactive deployments
+                    sh "kubectl patch service nginx-nodeport-service -p '{\"spec\":{\"selector\":{\"app\":\"nginx-canary\"}}}'"
+                }
+            }
+        }
+
         stage('Parallel Steps') {
             parallel {
                 stage('Performance Tests with k6') {
@@ -63,38 +103,14 @@ pipeline {
                         }
                     }
                 }
-
-                stage('Canary Deployment') {
-                    steps {
-                        script {
-                            // Determine the active deployment
-                            ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
-
-                            for (int i = 3; i >= 1; i--) {
-                                // Determine the inactive deployment
-                                INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
-
-                                // Scale down the active deployment
-                                sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=$i"
-
-                                // Scale up the inactive deployment
-                                sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=$((4 - $i))"
-
-                                // Wait for some time (adjust as needed)
-                                sleep 30
-                            }
-                        }
-                    }
-                }
             }
         }
 
         stage('Verify Image') {
             steps {
                 script {
-                    // Verify the image using SHA256
-                    sh "docker pull ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
-                    sh "docker inspect --format='{{index .RepoDigests 0}}' ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG} | grep -q SHA256"
+                    // Verify image by SHA256
+                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.template.spec.containers[0].image}' | grep -q ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
                 }
             }
         }
@@ -102,9 +118,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 script {
-                    // Verify deployment details
-                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=json | jq -r '.spec.replicas' | grep -q 2"
-                    sh "kubectl get deployment $INACTIVE_DEPLOYMENT -o=json | jq -r '.spec.replicas' | grep -q 1"
+                    // Verify deployment
+                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '2'"
                 }
             }
         }
@@ -112,8 +127,8 @@ pipeline {
         stage('Verify Endpoint') {
             steps {
                 script {
-                    // Verify if the endpoint is accessible and returns status code 200
-                    sh 'curl -s -o /dev/null -w "%{http_code}" http://spicy.kebab.solutions:31000 | grep -q 200'
+                    // Verify endpoint availability
+                    sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
                 }
             }
         }
