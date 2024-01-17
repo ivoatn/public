@@ -71,8 +71,6 @@ pipeline {
                         sleep 10
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=0"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=3"
-                    // Switch active and inactive deployments
-                    sh "kubectl patch service nginx-nodeport-service -p '{\"spec\":{\"selector\":{\"app\":\"nginx-canary\"}}}'"
                 }
             }
         }
