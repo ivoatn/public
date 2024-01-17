@@ -48,7 +48,7 @@ pipeline {
             steps {
                 script {
                     // Scan Docker image for vulnerabilities using Trivy
-                    sh "trivy ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
+                    sh "trivy image ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
                 }
             }
         }
