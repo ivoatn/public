@@ -115,7 +115,7 @@ pipeline {
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Verify Deployment Scaling') {
             steps {
                 script {
                     // Verify deployment
