@@ -71,11 +71,24 @@ pipeline {
             }
         }
 
-        stage('Performance Tests with k6') {
-            steps {
-                script {
-                    // Run k6 performance tests
-                    sh 'k6 run basic-perftest.js'
+        stage('Parallel Steps') {
+            parallel {
+                stage('Performance Tests with k6') {
+                    steps {
+                        script {
+                            // Run k6 performance tests
+                            sh 'k6 run basic-perftest.js'
+                        }
+                    }
+                }
+
+                stage('Capture Pod Logs') {
+                    steps {
+                        script {
+                            // Capture and print pod logs
+                            sh 'kubectl logs -l app=nginx'
+                        }
+                    }
                 }
             }
         }
