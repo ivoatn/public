@@ -3,33 +3,17 @@ kind: Deployment
 metadata:
   name: nginx-canary-deployment
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
-      app: nginx-canary
+      app: nginx
   template:
     metadata:
       labels:
-        app: nginx-canary
+        app: nginx
     spec:
       containers:
-      - name: nginx-simple-canary
+      - name: nginx-simple
         image: registry.digitalocean.com/jenkins-test-repository/nginx-simple:latest
         ports:
         - containerPort: 80
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-canary-nodeport-service
-spec:
-  selector:
-    app: nginx-canary
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 80
-    nodePort: 31000
-  type: NodePort
-  
