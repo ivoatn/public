@@ -65,8 +65,10 @@ pipeline {
 
                     // Gradually scale down the active deployment and scale up the inactive deployment
                     for (def i = 0; i < 3; i++) {
-                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=\$((${3 - i}))"
-                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=\$(${i + 1})"
+                    def activeReplicas = 3 - i
+                    def inactiveReplicas = i + 1
+                        sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=$activeReplicas"
+                        sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=$inactiveReplicas"
                         sleep 30
                     }
 
