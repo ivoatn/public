@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'RELEASE_VERSION', description: 'Enter the version for the GitHub release (e.g., 1.0.1)', defaultValue: '1.0.0')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('GitHub Release') {
+            steps {
+                script {
+                    def releaseVersion = params.RELEASE_VERSION
+
+                    // Assuming 'origin' is your GitHub remote name
+                    sh "git tag -a ${releaseVersion} -m 'Release ${releaseVersion}'"
+                    sh "git push origin ${releaseVersion}"
+                }
+            }
+        }
+
+        stage('Merge main into develop') {
+            steps {
+                script {
+                    // Assuming 'main' is your main branch and 'develop' is your development branch
+                    sh 'git checkout develop'
+                    sh 'git merge origin/staging'
+                    sh 'git push origin develop'
+                }
+            }
+        }
+
+        stage('Trigger Staging Job') {
+            steps {
+                script {
+                    // Trigger the staging job
+                    build job: 'MultiBranch-Public/develop', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+                }
+            }
+        }
+    }
+}
