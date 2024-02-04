@@ -35,11 +35,13 @@ pipeline {
             }
         }
 
-        stage('Trigger Deploy Pipeline') {
+
+        stage('Trigger Dev Job') {
             steps {
                 script {
-                    // Trigger the Deploy Pipeline with the same release version
-                    build job: 'Deploy-Pipeline', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+                    // Trigger the dev job
+                    build job: 'MultiBranch-Public/develop', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+
                 }
             }
         }
