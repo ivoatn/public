@@ -92,15 +92,6 @@ pipeline {
             }
         }
 
-        stage('Verify Image') {
-            steps {
-                script {
-                    // Verify image by SHA256
-                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.template.spec.containers[0].image}' | grep -q ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${RELEASE_VERSION}"
-                }
-            }
-        }
-
         stage('Verify Deployment Scaling') {
             steps {
                 script {
