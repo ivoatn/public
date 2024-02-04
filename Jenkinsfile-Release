@@ -29,6 +29,7 @@ pipeline {
                 script {
                     // Assuming 'main' is your main branch and 'develop' is your development branch
                     sh 'git checkout develop'
+                    sh 'git pull origin develop' // Pull changes from remote develop branch
                     sh 'git merge origin/main'
                     sh 'git push origin develop'
                 }
