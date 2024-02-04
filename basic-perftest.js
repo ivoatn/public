@@ -8,7 +8,7 @@ export default function () {
   }
 
   // Wait for 30 seconds
-  sleep(30);
+  sleep(35);
 
   // Repeat the process until 5 minutes have passed
   // Adjust the duration based on your requirements
