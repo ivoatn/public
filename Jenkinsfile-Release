@@ -29,7 +29,7 @@ pipeline {
                 script {
                     // Assuming 'main' is your main branch and 'develop' is your development branch
                     sh 'git checkout develop'
-                    sh 'git merge origin/staging'
+                    sh 'git merge origin/main'
                     sh 'git push origin develop'
                 }
             }
