@@ -35,10 +35,10 @@ pipeline {
             }
         }
 
-        stage('Trigger Staging Job') {
+        stage('Trigger Dev Job') {
             steps {
                 script {
-                    // Trigger the staging job
+                    // Trigger the dev job
                     build job: 'MultiBranch-Public/develop', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
                 }
             }
