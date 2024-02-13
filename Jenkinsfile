@@ -1,6 +1,9 @@
 pipeline {
     agent any
-
+   
+    triggers {
+        githubPush()
+    }
     
     parameters {
         string(name: 'RELEASE_VERSION', defaultValue: 'latest', description: 'Release version to deploy')
