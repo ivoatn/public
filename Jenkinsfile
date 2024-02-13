@@ -72,10 +72,10 @@ pipeline {
                     // Gradually scale down the active deployment and scale up the inactive deployment
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=2"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=1"
-                        sleep 15
+                        sleep 60
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=1"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=2"
-                        sleep 15
+                        sleep 60
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=0"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=3"
                 }
@@ -89,6 +89,14 @@ pipeline {
                         script {
                             // Run k6 performance tests
                             sh 'k6 run basic-perftest.js'
+                        }
+                    }
+                }
+                stage( 'Performance Tests with curl') {
+                    steps {
+                        script {
+                            // Run curl performance tests
+                            sh 'for i in {1..10}; do curl -o /dev/null -s -w "Total time: %{time_total}\n" http://example.com; sleep 10; done'
                         }
                     }
                 }
