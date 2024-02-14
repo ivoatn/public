@@ -111,6 +111,9 @@ pipeline {
                     steps {
                         script {
                             try {
+                                // Run JMeter test
+                                sh 'jmeter -n -t performance-test.jmx -l performance_reports/test-results.jtl'
+
                                 // Run JMeter test with Performance Plugin
                                 perfReport([
                                   sourceDataFiles: 'performance_reports/*.jtl', // Adjust the file extension if necessary
