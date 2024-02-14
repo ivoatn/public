@@ -106,19 +106,19 @@ pipeline {
                         }
                     }
                 }
-            }
+
                 stage('Performance Tests with JMeter') {
                     steps {
                         script {
                             try {
                                 // Run JMeter test with Performance Plugin
                                 performance tests([
-                                    jmxFile: 'performance-test.jmx', // This assumes the file is in the root of the workspace
+                                    jmxFile: 'performance-test.jmx', // Assume the file is in the root of the workspace
                                     scenarioName: 'My Performance Test',
                                     reportsDirectory: 'performance_reports'
                                 ])
 
-                    // Check for failures in reports
+                                // Check for failures in reports
                                 if (findMatches(text: readFile('performance_reports/summary.txt'), pattern: 'FAILED').count > 0) {
                                     echo "Performance test failed!"
                                     rollBackDeployment()
@@ -128,11 +128,14 @@ pipeline {
                             } catch (Exception e) {
                                 echo "JMeter test failed: ${e.message}"
                                 rollBackDeployment()
+                            }
                         }
                     }
                 }
-            }
+            } // This closing brace should be on the same level as the opening one
         }
+
+        
         stage('Verify Deployment') {
             steps {
                 script {
