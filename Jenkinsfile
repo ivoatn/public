@@ -106,22 +106,33 @@ pipeline {
                         }
                     }
                 }
-                stage('Performance Tests with curl') {
+            }
+                stage('Performance Tests with JMeter') {
                     steps {
                         script {
                             try {
-                                // Run curl performance tests
-                                sh 'for ((i=0; i<12; i++)); do curl -o /dev/null -s -w "Total time: %{time_total}\n" http://spicy.kebab.solutions:31000; sleep 10; done'
+                                // Run JMeter test with Performance Plugin
+                                performance tests([
+                                    jmxFile: 'performance-test.jmx', // This assumes the file is in the root of the workspace
+                                    scenarioName: 'My Performance Test',
+                                    reportsDirectory: 'performance_reports'
+                                ])
+
+                    // Check for failures in reports
+                                if (findMatches(text: readFile('performance_reports/summary.txt'), pattern: 'FAILED').count > 0) {
+                                    echo "Performance test failed!"
+                                    rollBackDeployment()
+                                } else {
+                                    echo "Performance test passed."
+                                }
                             } catch (Exception e) {
-                                echo "curl performance test failed: ${e.message}"
+                                echo "JMeter test failed: ${e.message}"
                                 rollBackDeployment()
-                            }
                         }
                     }
                 }
             }
-        }
-
+            
         stage('Verify Deployment') {
             steps {
                 script {
