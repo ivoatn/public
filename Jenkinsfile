@@ -8,6 +8,8 @@ pipeline {
     parameters {
         string(name: 'RELEASE_VERSION', defaultValue: 'latest', description: 'Release version to deploy')
         string(name: 'KUBE_DEPLOYMENT_NAMESPACE', defaultValue: 'default', description: 'Kubernetes namespace for deployment')
+        booleanParam(defaultValue: false, description: 'Fail the pipeline?', name: 'FAIL_PIPELINE')
+
     }
     environment {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
@@ -89,21 +91,28 @@ pipeline {
             }
         }
 
-        stage('Performance Test') {
-            parallel {
-                stage('Performance Tests with k6') {
-                    steps {
-                        script {
-                            try {
-                                // Run k6 performance tests
-                                sh 'k6 run basic-perftest.js'
-                            } catch (Exception e) {
-                                echo "Performance test with k6 failed: ${e.message}"
-                                rollBackDeployment()
-                            }
+        stage('Verify Endpoint') {
+            steps {
+                script {
+                    try {
+                // Verify endpoint availability
+                       sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
+                    } catch (Exception e) {
+                       echo "Endpoint verification failed: ${e.message}"
+                       if (params.FAIL_PIPELINE) {
+                           echo "Failing the pipeline as per request..."
+                           failPipeline()
+                        } else {
+                          echo "Rolling back deployment..."
+                          rollBackDeployment()
+                         currentBuild.result = 'FAILURE'
+                           error  "Pipeline failed due to endpoint verification failure"
                         }
                     }
                 }
+            }
+        }
+
                 stage( 'Performance Tests with curl') {
                     steps {
                         script {
@@ -154,5 +163,11 @@ pipeline {
 def rollBackDeployment() {
 
     sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}@${previousDigest}"
+
+}
+
+def failPipeline() {
+
+    error 'Pipeline failed as per request.'
 
 }
