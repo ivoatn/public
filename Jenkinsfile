@@ -112,7 +112,7 @@ pipeline {
                         script {
                             try {
                                 // Run JMeter test with Performance Plugin
-                                performance tests([
+                                perfReport([
                                     jmxFile: 'performance-test.jmx', // Assume the file is in the root of the workspace
                                     scenarioName: 'My Performance Test',
                                     reportsDirectory: 'performance_reports'
