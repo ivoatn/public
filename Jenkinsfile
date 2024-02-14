@@ -174,7 +174,7 @@ pipeline {
 }
 
 def rollBackDeployment() {
-    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}@${PREVIOUS_DIGEST}"
+    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${PREVIOUS_DIGEST}"
 }
 
 def failPipeline() {
