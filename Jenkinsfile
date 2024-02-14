@@ -132,7 +132,7 @@ pipeline {
                     }
                 }
             }
-            
+        }
         stage('Verify Deployment') {
             steps {
                 script {
@@ -146,7 +146,6 @@ pipeline {
                 }
             }
         }
-
         stage('Verify Endpoint') {
             steps {
                 script {
