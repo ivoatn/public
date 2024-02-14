@@ -13,6 +13,7 @@ pipeline {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
         DOCKER_REGISTRY = "registry.digitalocean.com/jenkins-test-repository"
         DOCKER_IMAGE_NAME = "nginx-simple"
+        PREVIOUS_DIGEST = sh(script: "docker image inspect --format='{{index .RepoDigests 0}}' ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${RELEASE_VERSION}", returnStdout: true).trim()
     }
 
     stages {
@@ -63,13 +64,14 @@ pipeline {
         stage('Canary Deployment') {
             steps {
                 script {
-                    // Determine active deployment
-                    ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
+                    try {
+                        // Determine active deployment
+                        ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
 
-                    // Determine inactive deployment
-                    INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
+                        // Determine inactive deployment
+                        INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
 
-                    // Gradually scale down the active deployment and scale up the inactive deployment
+                        // Gradually scale down the active deployment and scale up the inactive deployment
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=2"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=1"
                         sleep 60
@@ -78,6 +80,11 @@ pipeline {
                         sleep 60
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=0"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=3"
+                    } catch (Exception e) {
+                        echo "Canary deployment failed: ${e.message}"
+                        // Revert to the previous digest if canary deployment fails
+                        rollBackDeployment()
+                    }
                 }
             }
         }
@@ -87,27 +94,42 @@ pipeline {
                 stage('Performance Tests with k6') {
                     steps {
                         script {
-                            // Run k6 performance tests
-                            sh 'k6 run basic-perftest.js'
+                            try {
+                                // Run k6 performance tests
+                                sh 'k6 run basic-perftest.js'
+                            } catch (Exception e) {
+                                echo "Performance test with k6 failed: ${e.message}"
+                                rollBackDeployment()
+                            }
                         }
                     }
                 }
                 stage( 'Performance Tests with curl') {
                     steps {
                         script {
-                            // Run curl performance tests
-                            sh 'for i in {1..10}; do curl -o /dev/null -s -w "Total time: %{time_total}\n" http://example.com; sleep 10; done'
+                            try {
+                                // Run curl performance tests
+                                sh 'for ((i=0; i<12; i++)); do curl -o /dev/null -s -w "Total time: %{time_total}\n" http://spicy.kebab.solutions:31000; sleep 10; done'
+                            } catch (Exception e) {
+                                echo "Performance test with curl failed: ${e.message}"
+                                rollBackDeployment()
+                            }
                         }
                     }
                 }
             }
         }
 
-        stage('Verify Deployment Scaling') {
+        stage('Verify Deployment') {
             steps {
                 script {
-                    // Verify deployment
-                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '0'"
+                    try {
+                        // Verify deployment
+                        sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '0'"
+                    } catch (Exception e) {
+                        echo "Deployment verification failed: ${e.message}"
+                        rollBackDeployment()
+                    }
                 }
             }
         }
@@ -115,11 +137,22 @@ pipeline {
         stage('Verify Endpoint') {
             steps {
                 script {
-                    // Verify endpoint availability
-                    sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
+                    try {
+                        // Verify endpoint availability
+                        sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
+                    } catch (Exception e) {
+                        echo "Endpoint verification failed: ${e.message}"
+                        rollBackDeployment()
+                    }
                 }
             }
         }
     }
 }
 
+
+def rollBackDeployment {
+
+    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}@${previousDigest}"
+
+}
