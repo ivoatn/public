@@ -9,8 +9,8 @@ pipeline {
         string(name: 'RELEASE_VERSION', defaultValue: 'latest', description: 'Release version to deploy')
         string(name: 'KUBE_DEPLOYMENT_NAMESPACE', defaultValue: 'default', description: 'Kubernetes namespace for deployment')
         booleanParam(defaultValue: false, description: 'Fail the pipeline?', name: 'FAIL_PIPELINE')
-
     }
+    
     environment {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
         DOCKER_REGISTRY = "registry.digitalocean.com/jenkins-test-repository"
@@ -91,36 +91,29 @@ pipeline {
             }
         }
 
-        stage('Verify Endpoint') {
-            steps {
-                script {
-                    try {
-                // Verify endpoint availability
-                       sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
-                    } catch (Exception e) {
-                       echo "Endpoint verification failed: ${e.message}"
-                       if (params.FAIL_PIPELINE) {
-                           echo "Failing the pipeline as per request..."
-                           failPipeline()
-                        } else {
-                          echo "Rolling back deployment..."
-                          rollBackDeployment()
-                         currentBuild.result = 'FAILURE'
-                           error  "Pipeline failed due to endpoint verification failure"
+        stage('Performance Test') {
+            parallel {
+                stage('Performance Tests with k6') {
+                    steps {
+                        script {
+                            try {
+                                // Run k6 performance tests
+                                sh 'k6 run basic-perftest.js'
+                            } catch (Exception e) {
+                                echo "k6 performance test failed: ${e.message}"
+                                rollBackDeployment()
+                            }
                         }
                     }
                 }
-            }
-        }
-
-                stage( 'Performance Tests with curl') {
+                stage('Performance Tests with curl') {
                     steps {
                         script {
                             try {
                                 // Run curl performance tests
                                 sh 'for ((i=0; i<12; i++)); do curl -o /dev/null -s -w "Total time: %{time_total}\n" http://spicy.kebab.solutions:31000; sleep 10; done'
                             } catch (Exception e) {
-                                echo "Performance test with curl failed: ${e.message}"
+                                echo "curl performance test failed: ${e.message}"
                                 rollBackDeployment()
                             }
                         }
@@ -151,7 +144,15 @@ pipeline {
                         sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
                     } catch (Exception e) {
                         echo "Endpoint verification failed: ${e.message}"
-                        rollBackDeployment()
+                        if (params.FAIL_PIPELINE) {
+                            echo "Failing the pipeline as per request..."
+                            failPipeline()
+                        } else {
+                            echo "Rolling back deployment..."
+                            rollBackDeployment()
+                            currentBuild.result = 'FAILURE'
+                            error "Pipeline failed due to endpoint verification failure"
+                        }
                     }
                 }
             }
@@ -159,15 +160,10 @@ pipeline {
     }
 }
 
-
 def rollBackDeployment() {
-
-    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}@${previousDigest}"
-
+    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}@${PREVIOUS_DIGEST}"
 }
 
 def failPipeline() {
-
     error 'Pipeline failed as per request.'
-
 }
