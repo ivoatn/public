@@ -113,10 +113,11 @@ pipeline {
                             try {
                                 // Run JMeter test with Performance Plugin
                                 perfReport([
-                                    jmxFile: 'performance-test.jmx', // Assume the file is in the root of the workspace
-                                    scenarioName: 'My Performance Test',
-                                    reportsDirectory: 'performance_reports'
-                                ])
+                                  sourceDataFiles: 'performance_reports/*.jtl', // Adjust the file extension if necessary
+                                  modePerformancePerTestCase: true,
+                                  relativeFailedThresholdNegative: 0,
+                                  relativeFailedThresholdPositive: 0,
+                                  modeThroughput: true                                ])
 
                                 // Check for failures in reports
                                 if (findMatches(text: readFile('performance_reports/summary.txt'), pattern: 'FAILED').count > 0) {
