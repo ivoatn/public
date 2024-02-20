@@ -112,7 +112,7 @@ pipeline {
                         script {
                             try {
                                 // Run JMeter test
-                                sh 'jmeter -n -t performance-test.jmx -l performance_reports/test-results.jtl'
+                                sh '/var/lib/jenkins/apache-jmeter-5.5/bin/jmeter.sh -n -t performance-test.jmx -l performance_reports/test-results.jtl'
 
                                 // Run JMeter test with Performance Plugin
                                 perfReport([
