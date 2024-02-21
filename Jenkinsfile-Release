@@ -24,6 +24,15 @@ pipeline {
             }
         }
 
+        stage('Deploy to development ') {
+            steps {
+                script {
+                    // Trigger the dev job
+                    build job: 'MultiBranch-Public/develop', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+
+                }
+            }
+        }
 
         stage('Trigger Production Release') {
             steps {
