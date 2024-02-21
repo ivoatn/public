@@ -24,24 +24,12 @@ pipeline {
             }
         }
 
-        stage('Merge main into develop') {
-            steps {
-                script {
-                    // Assuming 'main' is your main branch and 'develop' is your development branch
-                    sh 'git checkout develop'
-                    sh 'git pull origin develop' // Pull changes from remote develop branch
-                    sh 'git merge origin/main'
-                    sh 'git push origin develop'
-                }
-            }
-        }
 
-
-        stage('Trigger Dev Job') {
+        stage('Trigger Production Release') {
             steps {
                 script {
                     // Trigger the dev job
-                    build job: 'MultiBranch-Public/develop', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
+                    build job: 'Production-Deployment', parameters: [string(name: 'RELEASE_VERSION', value: params.RELEASE_VERSION)]
 
                 }
             }
