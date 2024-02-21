@@ -15,13 +15,27 @@ pipeline {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
         DOCKER_REGISTRY = "registry.digitalocean.com/jenkins-test-repository"
         DOCKER_IMAGE_NAME = "nginx-simple"
-        PREVIOUS_DIGEST = sh(script: "docker image inspect --format='{{index .RepoDigests 0}}' ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${RELEASE_VERSION}", returnStdout: true).trim()
+        PREVIOUS_DIGEST = ''
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+    stages {
+        stage('Set Previous Digest') {
+            steps {
+                script {
+                    try {
+                        PREVIOUS_DIGEST = sh(script: "docker image inspect --format='{{index .RepoDigests 0}}' ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${RELEASE_VERSION}", returnStdout: true).trim()
+                    } catch (Exception e) {
+                        echo "An error occurred while retrieving the previous digest. Using 'latest' as the previous digest."
+                        PREVIOUS_DIGEST = 'latest'
+                    }
+                }
             }
         }
 
