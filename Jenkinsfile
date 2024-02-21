@@ -25,7 +25,6 @@ pipeline {
             }
         }
 
-    stages {
         stage('Set Previous Digest') {
             steps {
                 script {
@@ -38,7 +37,7 @@ pipeline {
                 }
             }
         }
-    }
+
         stage('SonarQube Analysis') {
             steps {
                 script {
