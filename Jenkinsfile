@@ -1,21 +1,40 @@
 pipeline {
     agent any
-
+   
+    triggers {
+        githubPush()
+    }
     
     parameters {
         string(name: 'RELEASE_VERSION', defaultValue: 'latest', description: 'Release version to deploy')
         string(name: 'KUBE_DEPLOYMENT_NAMESPACE', defaultValue: 'default', description: 'Kubernetes namespace for deployment')
+        booleanParam(defaultValue: false, description: 'Fail the pipeline?', name: 'FAIL_PIPELINE')
     }
+    
     environment {
         SONAR_TOKEN = credentials('SONAR_TOKEN')
         DOCKER_REGISTRY = "registry.digitalocean.com/jenkins-test-repository"
         DOCKER_IMAGE_NAME = "nginx-simple"
+        PREVIOUS_DIGEST = ''
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Set Previous Digest') {
+            steps {
+                script {
+                    try {
+                        PREVIOUS_DIGEST = sh(script: "docker image inspect --format='{{index .RepoDigests 0}}' ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${RELEASE_VERSION}", returnStdout: true).trim()
+                    } catch (Exception e) {
+                        echo "An error occurred while retrieving the previous digest. Using 'latest' as the previous digest."
+                        PREVIOUS_DIGEST = 'latest'
+                    }
+                }
             }
         }
 
@@ -60,21 +79,27 @@ pipeline {
         stage('Canary Deployment') {
             steps {
                 script {
-                    // Determine active deployment
-                    ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
+                    try {
+                        // Determine active deployment
+                        ACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[1].metadata.name}"', returnStdout: true).trim()
 
-                    // Determine inactive deployment
-                    INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
+                        // Determine inactive deployment
+                        INACTIVE_DEPLOYMENT = sh(script: 'kubectl get deployments --sort-by="{.spec.replicas}" -o=jsonpath="{.items[0].metadata.name}"', returnStdout: true).trim()
 
-                    // Gradually scale down the active deployment and scale up the inactive deployment
+                        // Gradually scale down the active deployment and scale up the inactive deployment
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=2"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=1"
-                        sleep 10
+                        sleep 60
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=1"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=2"
-                        sleep 10
+                        sleep 60
                         sh "kubectl scale deployment $ACTIVE_DEPLOYMENT --replicas=0"
                         sh "kubectl scale deployment $INACTIVE_DEPLOYMENT --replicas=3"
+                    } catch (Exception e) {
+                        echo "Canary deployment failed: ${e.message}"
+                        // Revert to the previous digest if canary deployment fails
+                        rollBackDeployment()
+                    }
                 }
             }
         }
@@ -84,31 +109,91 @@ pipeline {
                 stage('Performance Tests with k6') {
                     steps {
                         script {
-                            // Run k6 performance tests
-                            sh 'k6 run basic-perftest.js'
+                            try {
+                                // Run k6 performance tests
+                                sh 'k6 run basic-perftest.js'
+                            } catch (Exception e) {
+                                echo "k6 performance test failed: ${e.message}"
+                                rollBackDeployment()
+                            }
                         }
+                    }
+                }
+
+                stage('Performance Tests with JMeter') {
+                    steps {
+                        script {
+                            try {
+                                // Run JMeter test
+                                sh '/var/lib/jenkins/apache-jmeter-5.5/bin/jmeter.sh -n -t performance-test.jmx -l performance_reports/test-results.jtl'
+
+                                // Run JMeter test with Performance Plugin
+                                perfReport([
+                                  sourceDataFiles: 'performance_reports/*.jtl', // Adjust the file extension if necessary
+                                  modePerformancePerTestCase: true,
+                                  relativeFailedThresholdNegative: 0,
+                                  relativeFailedThresholdPositive: 0,
+                                  modeThroughput: true                                ])
+
+                                // Check for failures in reports
+                                if (findMatches(text: readFile('performance_reports/summary.txt'), pattern: 'FAILED').count > 0) {
+                                    echo "Performance test failed!"
+                                    rollBackDeployment()
+                                } else {
+                                    echo "Performance test passed."
+                                }
+                            } catch (Exception e) {
+                                echo "JMeter test failed: ${e.message}"
+                                rollBackDeployment()
+                            }
+                        }
+                    }
+                }
+            } // This closing brace should be on the same level as the opening one
+        }
+
+        
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    try {
+                        // Verify deployment
+                        sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '0'"
+                    } catch (Exception e) {
+                        echo "Deployment verification failed: ${e.message}"
+                        rollBackDeployment()
                     }
                 }
             }
         }
-
-        stage('Verify Deployment Scaling') {
-            steps {
-                script {
-                    // Verify deployment
-                    sh "kubectl get deployment $ACTIVE_DEPLOYMENT -o=jsonpath='{.spec.replicas}' | grep -q '0'"
-                }
-            }
-        }
-
         stage('Verify Endpoint') {
             steps {
                 script {
-                    // Verify endpoint availability
-                    sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
+                    try {
+                        // Verify endpoint availability
+                        sh 'curl -I http://spicy.kebab.solutions:31000 | grep -q "200 OK"'
+                    } catch (Exception e) {
+                        echo "Endpoint verification failed: ${e.message}"
+                        if (params.FAIL_PIPELINE) {
+                            echo "Failing the pipeline as per request..."
+                            failPipeline()
+                        } else {
+                            echo "Rolling back deployment..."
+                            rollBackDeployment()
+                            currentBuild.result = 'FAILURE'
+                            error "Pipeline failed due to endpoint verification failure"
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+def rollBackDeployment() {
+    sh "kubectl set image deployment/${ACTIVE_DEPLOYMENT} ${DOCKER_IMAGE_NAME}=${PREVIOUS_DIGEST}"
+}
+
+def failPipeline() {
+    error 'Pipeline failed as per request.'
+}
